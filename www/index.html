@@ -506,6 +506,7 @@ $(function() {
     loadPosts();
 });
 
+//タイマー機能
 // クリーンアップ処理
 window.addEventListener('unload', function() {
     if (postsListener) {
@@ -513,9 +514,94 @@ window.addEventListener('unload', function() {
         postsListener = null;
     }
 });
+function saveTimer(presetTime) {
+    if (!currentUser) {
+        showMessage('タイマーを保存するにはログインが必要です', 'error');
+        return;
+    }
+
+    if (!presetTime || presetTime <= 0) {
+        showMessage('正しい時間を入力してください', 'error');
+        return;
+    }
+
+    const timerData = {
+        presetTime: presetTime,
+        createdAt: Date.now()
+    };
+
+    const userId = currentUser.uid;
+    const userTimerRef = firebase.database().ref(`timers/${userId}`);
+
+    userTimerRef.set(timerData)
+        .then(() => {
+            showMessage('タイマーを保存しました');
+        })
+        .catch((error) => {
+            showMessage('タイマーの保存に失敗しました: ' + error.message, 'error');
+        });
+}
+function startTimer(presetTime) {
+    if (!presetTime || presetTime <= 0) {
+        showMessage('正しい時間を入力してください', 'error');
+        return;
+    }
+
+    let remainingTime = presetTime * 60; // 分を秒に変換
+    const timeDisplay = $('#timeLeft');
+
+    const interval = setInterval(() => {
+        if (remainingTime <= 0) {
+            clearInterval(interval);
+            showMessage('タイマーが終了しました');
+            timeDisplay.text('00:00');
+            return;
+        }
+
+        const minutes = Math.floor(remainingTime / 60);
+        const seconds = remainingTime % 60;
+        timeDisplay.text(`${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`);
+        remainingTime -= 1;
+    }, 1000);
+}
+$(function() {
+    // タイマー保存ボタンのイベントハンドラ
+    $('#saveTimerButton').on('click', function() {
+        const presetTime = parseInt($('#presetTime').val(), 10); // 入力値を取得
+        saveTimer(presetTime);
+    });
+
+    // タイマー開始ボタンのイベントハンドラ
+    $('#startTimerButton').on('click', function() {
+        const presetTime = parseInt($('#presetTime').val(), 10); // 入力値を取得
+        startTimer(presetTime);
+    });
+});
+
+
+
     </script>
 </head>
 <body>
+<!-- タイマー設定フォーム -->
+<div class="timer-form logged-in">
+    <h3>タイマー設定</h3>
+    <div class="form-group">
+        <label for="presetTime">セット時間（分）</label>
+        <input type="number" id="presetTime" class="form-control" placeholder="例: 30">
+    </div>
+    <div class="button-group">
+        <button id="saveTimerButton" class="btn-primary">タイマーを保存</button>
+    </div>
+</div>
+
+<!-- タイマーの進行表示 -->
+<div id="timerDisplay" class="timer-display">
+    <h3>タイマー</h3>
+    <p id="timeLeft">--:--</p>
+    <button id="startTimerButton" class="btn-primary">タイマー開始</button>
+</div>
+
     <div class="container">
         <h1>掲示板アプリ</h1>
         

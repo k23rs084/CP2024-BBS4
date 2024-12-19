@@ -507,6 +507,10 @@ $(function() {
 });
 
 //タイマー機能
+let timerInterval = null; // タイマーのインターバルID
+let remainingTime = 0; // 残り時間（秒）
+let savedTime = 0; // 保存された時間（分）
+
 // クリーンアップ処理
 window.addEventListener('unload', function() {
     if (postsListener) {
@@ -525,6 +529,17 @@ function saveTimer(presetTime) {
         return;
     }
 
+    // 動作中のタイマーを停止
+    if (timerInterval) {
+        clearInterval(timerInterval);
+        timerInterval = null;
+        showMessage('既存のタイマーを停止しました', 'info');
+    }
+
+    // 保存時間をセット
+    savedTime = presetTime;
+
+    // Firebaseに保存
     const timerData = {
         presetTime: presetTime,
         createdAt: Date.now()
@@ -535,24 +550,34 @@ function saveTimer(presetTime) {
 
     userTimerRef.set(timerData)
         .then(() => {
-            showMessage('タイマーを保存しました');
+            showMessage('タイマー時間を保存しました');
         })
         .catch((error) => {
             showMessage('タイマーの保存に失敗しました: ' + error.message, 'error');
         });
 }
-function startTimer(presetTime) {
-    if (!presetTime || presetTime <= 0) {
-        showMessage('正しい時間を入力してください', 'error');
+
+function startTimer() {
+    // 動作中のタイマーがあれば停止
+    if (timerInterval) {
+        clearInterval(timerInterval);
+        timerInterval = null;
+    }
+
+    // 保存された時間が有効か確認
+    if (!savedTime || savedTime <= 0) {
+        showMessage('保存された時間がありません。先に時間を保存してください', 'error');
         return;
     }
 
-    let remainingTime = presetTime * 60; // 分を秒に変換
+    // 残り時間を設定
+    remainingTime = savedTime * 60; // 分を秒に変換
     const timeDisplay = $('#timeLeft');
 
-    const interval = setInterval(() => {
+    timerInterval = setInterval(() => {
         if (remainingTime <= 0) {
-            clearInterval(interval);
+            clearInterval(timerInterval);
+            timerInterval = null;
             showMessage('タイマーが終了しました');
             timeDisplay.text('00:00');
             return;
@@ -561,9 +586,11 @@ function startTimer(presetTime) {
         const minutes = Math.floor(remainingTime / 60);
         const seconds = remainingTime % 60;
         timeDisplay.text(`${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`);
+
         remainingTime -= 1;
     }, 1000);
 }
+
 $(function() {
     // タイマー保存ボタンのイベントハンドラ
     $('#saveTimerButton').on('click', function() {
@@ -577,7 +604,18 @@ $(function() {
         startTimer(presetTime);
     });
 });
+$(function () {
+    // タイマー保存ボタンのイベントハンドラ
+    $('#saveTimerButton').on('click', function () {
+        const presetTime = parseInt($('#presetTime').val(), 10); // 入力値を取得
+        saveTimer(presetTime);
+    });
 
+    // タイマー開始ボタンのイベントハンドラ
+    $('#startTimerButton').on('click', function () {
+        startTimer(); // 保存された時間を使用
+    });
+});
 
 
     </script>
